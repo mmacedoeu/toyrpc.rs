@@ -1,0 +1,36 @@
+[package]
+name = "toyrpc"
+version = "0.1.0"
+authors = ["mmacedoeu <contato@mmacedo.eu.org>"]
+description = "Toy starter kit http jsonrpc derived from Ethereum parity"
+repository = "https://github.com/mmacedoeu/toyrpc.rs"
+keywords = ["rpc", "blockchain","jsonrpc","json","http"]
+categories = ["encoding", "date-and-time","data-structures","parsing","value-formatting"]
+license-file = "LICENSE"
+
+[dependencies]
+chrono = { version = "^0.2", features = ["serde"] }
+error-chain = "*"
+log = "0.3"
+env_logger = "0.3"
+lazy_static = "0.2"
+parking_lot = "0.3"
+arrayvec = "0.3"
+ansi_term = "0.7"
+futures = "0.1"
+order-stat = "0.1"
+bigint = "1.0"
+heapsize = "0.3"
+rand = "0.3.12"
+libc = "0.2"
+rustc-serialize = "0.3"
+serde = "0.9"
+serde_json = "0.9"
+serde_derive = "0.9"
+hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
+jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+ethcore-io = { path = "util/io" }
+rulid = "^0.3.0"
+clippy = { version = "0.0.103", optional = true}
