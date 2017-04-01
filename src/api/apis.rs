@@ -21,7 +21,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use jsonrpc_core::MetaIoHandler;
-use util::log::RotatingLogger;
+use ethcore_logger::RotatingLogger;
 use util::informant::{Middleware, RpcStats, ClientNotifier};
 use types::Metadata;
 
@@ -104,8 +104,6 @@ impl FromStr for ApiSet {
 
 pub struct Dependencies {
     pub logger: Arc<RotatingLogger>,
-    pub dapps_interface: Option<String>,
-    pub dapps_port: Option<u16>,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {

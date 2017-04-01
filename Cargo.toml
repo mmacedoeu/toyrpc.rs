@@ -7,10 +7,11 @@ repository = "https://github.com/mmacedoeu/toyrpc.rs"
 keywords = ["rpc", "blockchain","jsonrpc","json","http"]
 categories = ["encoding", "date-and-time","data-structures","parsing","value-formatting"]
 license-file = "LICENSE"
+build = "build.rs"
 
 [dependencies]
 chrono = { version = "^0.2", features = ["serde"] }
-error-chain = "*"
+error-chain = "0.10"
 log = "0.3"
 env_logger = "0.3"
 lazy_static = "0.2"
@@ -27,10 +28,25 @@ rustc-serialize = "0.3"
 serde = "0.9"
 serde_json = "0.9"
 serde_derive = "0.9"
-hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
-jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git", branch = "parity-1.6" }
+hyper = { default-features = false, git = "https://github.com/paritytech/hyper" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 ethcore-io = { path = "util/io" }
+parity-reactor = { path = "util/reactor" }
+ethcore-logger = { path = "logger" }
 rulid = "^0.3.0"
+ctrlc = { version = "3.0", features = ["termination"] }
+fdlimit = "0.1"
+app_dirs = "1.1.1"
+number_prefix = "0.2"
+clap = "2.22"
+target_info = "0.1"
 clippy = { version = "0.0.103", optional = true}
+
+[target.'cfg(not(windows))'.dependencies]
+daemonize = "0.2"
+
+[build-dependencies]
+vergen = "0.1"
+rustc_version = "0.1"
