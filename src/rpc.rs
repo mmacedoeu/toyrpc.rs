@@ -1,15 +1,12 @@
 use hyper;
-use io::PanicHandler;
 use jsonrpc_core;
 use jsonrpc_core::MetaIoHandler;
-use jsonrpc_http_server;
-use jsonrpc_http_server::{ServerBuilder, Error as HttpServerError, HttpMetaExtractor,
+use jsonrpc_http_server::{ServerBuilder, Error as HttpServerError, MetaExtractor,
                           AccessControlAllowOrigin, Host, DomainsValidation};
 use types::{Origin, Metadata};
-use util::informant::{Middleware, RpcStats, ClientNotifier};
+use util::informant::{Middleware, RpcStats};
 use api;
 use api::apis::ApiSet;
-use std::fmt;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -47,7 +44,7 @@ pub struct Dependencies {
 }
 
 pub struct RpcExtractor;
-impl HttpMetaExtractor<Metadata> for RpcExtractor {
+impl MetaExtractor<Metadata> for RpcExtractor {
     fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
         let origin = req.headers()
             .get::<hyper::header::Origin>()
@@ -93,7 +90,7 @@ pub fn setup_http_rpc_server(dependencies: &Dependencies,
                                   remote,
                                   RpcExtractor);
     match start_result {
-        Err(HttpServerError::IoError(err)) => {
+        Err(HttpServerError::Io(err)) => {
             match err.kind() {
                 io::ErrorKind::AddrInUse => {
                     Err(format!("RPC address {} is already in use, make sure that another \
@@ -120,7 +117,7 @@ pub fn start_http<M, S, H, T>(addr: &SocketAddr,
     where M: jsonrpc_core::Metadata,
           S: jsonrpc_core::Middleware<M>,
           H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
-          T: HttpMetaExtractor<M>
+          T: MetaExtractor<M>
 {
     ServerBuilder::new(handler)
         .event_loop_remote(remote)
