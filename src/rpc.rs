@@ -45,10 +45,10 @@ pub struct Dependencies {
 
 pub struct RpcExtractor;
 impl MetaExtractor<Metadata> for RpcExtractor {
-    fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> Metadata {
+    fn read_metadata(&self, req: &hyper::server::Request) -> Metadata {
         let origin = req.headers()
             .get::<hyper::header::Origin>()
-            .map(|origin| format!("{}://{}", origin.scheme, origin.host))
+            .map(|origin| format!("{}://{}", origin.scheme(), origin.host()))
             .unwrap_or_else(|| "unknown".into());
         let mut metadata = Metadata::default();
         metadata.origin = Origin::Rpc(origin);

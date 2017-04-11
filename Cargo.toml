@@ -28,10 +28,10 @@ rustc-serialize = "0.3"
 serde = "0.9"
 serde_json = "0.9"
 serde_derive = "0.9"
-hyper = { default-features = false, git = "https://github.com/paritytech/hyper" }
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+hyper = { default-features = false, git = "https://github.com/hyperium/hyper" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "master" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "master" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "master" }
 ethcore-io = { path = "util/io" }
 parity-reactor = { path = "util/reactor" }
 ethcore-logger = { path = "logger" }
