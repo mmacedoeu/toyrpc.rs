@@ -19,22 +19,22 @@ parking_lot = "0.3"
 arrayvec = "0.3"
 ansi_term = "0.7"
 futures = "0.1"
+futures-cpupool = "0.1"
 order-stat = "0.1"
 bigint = "1.0"
 heapsize = "0.3"
 rand = "0.3.12"
 libc = "0.2"
 rustc-serialize = "0.3"
-serde = "0.9"
-serde_json = "0.9"
-serde_derive = "0.9"
-hyper = { default-features = false, git = "https://github.com/hyperium/hyper" }
+serde = "1.0.10"
+serde_json = "1.0.2"
+serde_derive = "1.0.10"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "master" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "master" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "master" }
-ethcore-io = { path = "util/io" }
-parity-reactor = { path = "util/reactor" }
-ethcore-logger = { path = "logger" }
+ethcore-io = { path = "crates/util/io" }
+parity-reactor = { path = "crates/util/reactor" }
+ethcore-logger = { path = "crates/logger" }
 rulid = "^0.3.0"
 ctrlc = { version = "3.0", features = ["termination"] }
 fdlimit = "0.1"

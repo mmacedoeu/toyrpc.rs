@@ -117,21 +117,24 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error> where D: serde::Deserializer {
+		impl<'a> serde::Deserialize<'a> for $name {
+			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error> where D: serde::Deserializer<'a> {
 				struct HashVisitor;
 
-				impl serde::de::Visitor for HashVisitor {
+				impl<'b> serde::de::Visitor<'b> for HashVisitor {
 					type Value = $name;
 
 					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-						write!(formatter, "a 0x-prefixed, padded, hex-encoded hash of type {}", stringify!($name))
+						write!(formatter, "a 0x-prefixed, padded, hex-encoded hash with length {}", $size * 2)
 					}
 
 					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
 
+						if value.len() < 2 || &value[0..2] != "0x" {
+							return Err(E::custom("expected a hex-encoded hash with 0x prefix"));
+						}
 						if value.len() != 2 + $size * 2 {
-							return Err(E::custom("Invalid length."));
+							return Err(E::invalid_length(value.len() - 2, &self));
 						}
 
 						match value[2..].from_hex() {
@@ -140,7 +143,7 @@ macro_rules! impl_hash {
 								result.copy_from_slice(v);
 								Ok($name(result))
 							},
-							_ => Err(E::custom("Invalid hex value."))
+							Err(e) => Err(E::custom(format!("invalid hex value: {:?}", e))),
 						}
 					}
 
@@ -149,7 +152,7 @@ macro_rules! impl_hash {
 					}
 				}
 
-				deserializer.deserialize(HashVisitor)
+				deserializer.deserialize_any(HashVisitor)
 			}
 		}
 	}

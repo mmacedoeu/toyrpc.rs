@@ -23,8 +23,8 @@ use parking_lot::{Mutex, Condvar};
 use ansi_term::Colour;
 use io::{MayPanic, PanicHandler};
 use ethcore_logger::Config as LogConfig;
-use util::informant;
-use informant::Informant;
+use util::informant::{self, CpuPool, Builder};
+use informant::{Informant};
 use rpc::HttpConfiguration;
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -72,6 +72,7 @@ pub fn execute(cmd: RunCmd,
         apis: deps_for_rpc_apis.clone(),
         remote: event_loop.raw_remote(),
         stats: rpc_stats.clone(),
+        pool: Some(Builder::new().create()),
     };
 
     // start rpc servers

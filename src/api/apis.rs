@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use jsonrpc_core::MetaIoHandler;
 use ethcore_logger::RotatingLogger;
-use util::informant::{Middleware, RpcStats, ClientNotifier};
+use util::informant::{Middleware, RpcStats, ClientNotifier, CpuPool};
 use types::Metadata;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
@@ -148,14 +148,15 @@ impl ApiSet {
     }
 }
 
-pub fn setup_rpc(stats: Arc<RpcStats>,
+pub fn setup_apis(stats: Arc<RpcStats>,
                  deps: Arc<Dependencies>,
-                 apis: ApiSet)
+                 apis: ApiSet,
+                 pool: Option<CpuPool>)
                  -> MetaIoHandler<Metadata, Middleware> {
     use traits::*;
     use impls::*;
 
-    let mut handler = MetaIoHandler::with_middleware(Middleware::new(stats, ClientNotifier {}));
+    let mut handler = MetaIoHandler::with_middleware(Middleware::new(stats, ClientNotifier {}, pool));
 
     // it's turned into vector, cause ont of the cases requires &[]
     let apis = apis.list_apis().into_iter().collect::<Vec<_>>();

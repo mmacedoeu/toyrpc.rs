@@ -8,8 +8,6 @@ extern crate parking_lot;
 extern crate ansi_term;
 extern crate futures;
 extern crate order_stat;
-#[macro_use]
-extern crate hyper;
 extern crate rustc_serialize;
 extern crate serde;
 #[macro_use]
@@ -34,6 +32,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate clap;
 extern crate target_info;
+extern crate futures_cpupool;
 
 mod util;
 mod rpc;

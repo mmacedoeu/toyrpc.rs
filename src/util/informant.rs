@@ -21,9 +21,13 @@ use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
 use std::time;
 use futures::Future;
+use futures_cpupool as pool;
 use jsonrpc_core as rpc;
 use order_stat;
 use parking_lot::RwLock;
+
+pub use self::pool::CpuPool;
+pub use self::pool::Builder;
 
 const RATE_SECONDS: usize = 10;
 const STATS_SAMPLES: usize = 60;
@@ -188,16 +192,18 @@ pub trait ActivityNotifier: Send + Sync + 'static {
 pub struct Middleware<T: ActivityNotifier = ClientNotifier> {
     stats: Arc<RpcStats>,
     notifier: T,
+   	pool: Option<CpuPool>,
 }
 
 impl<T: ActivityNotifier> Middleware<T> {
     /// Create new Middleware with stats counter and activity notifier.
-    pub fn new(stats: Arc<RpcStats>, notifier: T) -> Self {
-        Middleware {
-            stats: stats,
-            notifier: notifier,
-        }
-    }
+	pub fn new(stats: Arc<RpcStats>, notifier: T, pool: Option<CpuPool>) -> Self {
+		Middleware {
+			stats,
+			notifier,
+			pool,
+		}
+	}
 
     fn as_micro(dur: time::Duration) -> u32 {
         (dur.as_secs() * 1_000_000) as u32 + dur.subsec_nanos() / 1_000
@@ -205,21 +211,33 @@ impl<T: ActivityNotifier> Middleware<T> {
 }
 
 impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T> {
-    fn on_request<F>(&self, request: rpc::Request, meta: M, process: F) -> rpc::FutureResponse
-        where F: FnOnce(rpc::Request, M) -> rpc::FutureResponse
-    {
-        let start = time::Instant::now();
-        let response = process(request, meta);
+	type Future = rpc::futures::future::Either<
+		pool::CpuFuture<Option<rpc::Response>, ()>,
+		rpc::FutureResponse,
+	>;
 
-        self.notifier.active();
-        let stats = self.stats.clone();
-        stats.count_request();
-        response.map(move |res| {
-                stats.add_roundtrip(Self::as_micro(start.elapsed()));
-                res
-            })
-            .boxed()
-    }
+	fn on_request<F, X>(&self, request: rpc::Request, meta: M, process: F) -> Self::Future where
+		F: FnOnce(rpc::Request, M) -> X,
+		X: rpc::futures::Future<Item=Option<rpc::Response>, Error=()> + Send + 'static,
+	{
+		use self::rpc::futures::future::Either::{A, B};
+
+		let start = time::Instant::now();
+
+		self.notifier.active();
+		self.stats.count_request();
+
+		let stats = self.stats.clone();
+		let future = process(request, meta).map(move |res| {
+			stats.add_roundtrip(Self::as_micro(start.elapsed()));
+			res
+		});
+
+		match self.pool {
+			Some(ref pool) => A(pool.spawn(future)),
+			None => B(future.boxed()),
+		}
+	}
 }
 
 /// Client Notifier

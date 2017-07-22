@@ -1,0 +1,173 @@
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+use std::sync::Arc;
+
+use unicase::UniCase;
+use hyper::server;
+use hyper::header;
+use hyper::Method;
+
+use api::types::{App, ApiError};
+use api::response;
+use apps::fetcher::Fetcher;
+
+use handlers::extract_url;
+use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
+use jsonrpc_http_server::{self, http, AccessControlAllowOrigin};
+
+#[derive(Clone)]
+pub struct RestApi {
+    // TODO [ToDr] cors_domains should be handled by the server to avoid duplicated logic.
+    // RequestMiddleware should be able to tell that cors headers should be included.
+    cors_domains: Option<Vec<AccessControlAllowOrigin>>,
+    apps: Vec<App>,
+    fetcher: Arc<Fetcher>,
+}
+
+impl RestApi {
+    pub fn new(cors_domains: Vec<AccessControlAllowOrigin>,
+               endpoints: &Endpoints,
+               fetcher: Arc<Fetcher>)
+               -> Box<Endpoint> {
+        Box::new(RestApi {
+                     cors_domains: Some(cors_domains),
+                     apps: Self::list_apps(endpoints),
+                     fetcher: fetcher,
+                 })
+    }
+
+    fn list_apps(endpoints: &Endpoints) -> Vec<App> {
+        endpoints
+            .iter()
+            .filter_map(|(ref k, ref e)| e.info().map(|ref info| App::from_info(k, info)))
+            .collect()
+    }
+}
+
+impl Endpoint for RestApi {
+    fn to_async_handler(&self, path: EndpointPath) -> Box<Handler> {
+        Box::new(RestApiRouter::new((*self).clone(), path))
+    }
+}
+
+struct RestApiRouter {
+    api: RestApi,
+    cors_header: Option<header::AccessControlAllowOrigin>,
+    path: Option<EndpointPath>,
+    handler: Box<Handler>,
+}
+
+impl RestApiRouter {
+    fn new(api: RestApi, path: EndpointPath) -> Self {
+        RestApiRouter {
+            path: Some(path),
+            cors_header: None,
+            api: api,
+            handler: response::as_json_error(&ApiError {
+                                                  code: "404".into(),
+                                                  title: "Not Found".into(),
+                                                  detail: "Resource you requested has not been found."
+                                                      .into(),
+                                              }),
+        }
+    }
+
+    fn resolve_content(&self,
+                       hash: Option<&str>,
+                       path: EndpointPath)
+                       -> Option<Box<Handler>> {
+        trace!(target: "dapps", "Resolving content: {:?} from path: {:?}", hash, path);
+        match hash {
+            Some(hash) if self.api.fetcher.contains(hash) => {
+                Some(self.api.fetcher.to_async_handler(path))
+            }
+            _ => None,
+        }
+    }
+
+    /// Returns basic headers for a response (it may be overwritten by the handler)
+    fn response_headers(cors_header: Option<header::AccessControlAllowOrigin>) -> header::Headers {
+        let mut headers = header::Headers::new();
+
+        if let Some(cors_header) = cors_header {
+            headers.set(header::AccessControlAllowCredentials);
+            headers.set(header::AccessControlAllowMethods(vec![Method::Options,
+                                                               Method::Post,
+                                                               Method::Get]));
+            headers.set(header::AccessControlAllowHeaders(vec![UniCase("origin".to_owned()),
+                                                               UniCase("content-type"
+                                                                           .to_owned()),
+                                                               UniCase("accept".to_owned())]));
+
+            headers.set(cors_header);
+        }
+
+        headers
+    }
+}
+
+impl http::RequestMiddleware for RestApiRouter {
+    fn on_request(&mut self, request: server::Request) -> http::RequestMiddlewareAction {
+        self.cors_header = jsonrpc_http_server::cors_header(&request, &self.api.cors_domains)
+            .into();
+
+        if let Method::Options = *request.method() {
+            self.handler = response::empty();
+            return Some(self.handler).into();
+        }
+
+        // TODO [ToDr] Consider using `path.app_params` instead
+        let url = extract_url(&request);
+        if url.is_none() {
+            // Just return 404 if we can't parse URL
+            return None.into();
+        }
+
+        let url = url.expect("Check for None early-exists above; qed");
+        let mut path =
+            self.path
+                .take()
+                .expect("on_request called only once, and path is always defined in new; qed");
+        
+        let endpoint = url.path.get(1).map(|v| v.as_str());
+        let hash = url.path.get(2).map(|v| v.as_str());
+        // at this point path.app_id contains 'api', adjust it to the hash properly, otherwise
+        // we will try and retrieve 'api' as the hash when doing the /api/content route
+        if let Some(ref hash) = hash {
+            path.app_id = hash.clone().to_owned()
+        }
+
+        let handler = endpoint.and_then(|v| match v {
+                                            "apps" => Some(response::as_json(&self.api.apps)),
+                                            "ping" => Some(response::ping()),
+                                            "content" => self.resolve_content(hash, path),
+                                            _ => None,
+                                        });
+
+        // Overwrite default
+        if let Some(h) = handler {
+            self.handler = h;
+        }
+
+        self.handler.on_request(request)
+    }
+
+//    fn on_response(&mut self, res: &mut server::Response) -> Next {
+//        *res.headers_mut() = Self::response_headers(self.cors_header.take());
+//        self.handler.on_response(res)
+//    }
+}

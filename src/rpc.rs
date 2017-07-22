@@ -1,10 +1,9 @@
-use hyper;
 use jsonrpc_core;
 use jsonrpc_core::MetaIoHandler;
 use jsonrpc_http_server::{ServerBuilder, Error as HttpServerError, MetaExtractor,
                           AccessControlAllowOrigin, Host, DomainsValidation};
 use types::{Origin, Metadata};
-use util::informant::{Middleware, RpcStats};
+use util::informant::{Middleware, RpcStats, CpuPool};
 use api;
 use api::apis::ApiSet;
 use std::io;
@@ -13,6 +12,7 @@ use std::sync::Arc;
 use parity_reactor::TokioRemote;
 
 pub use jsonrpc_http_server::Server as HttpServer;
+pub use jsonrpc_http_server::hyper;
 
 #[derive(Debug, PartialEq)]
 pub struct HttpConfiguration {
@@ -41,6 +41,7 @@ pub struct Dependencies {
     pub apis: Arc<api::apis::Dependencies>,
     pub remote: TokioRemote,
     pub stats: Arc<RpcStats>,
+	pub pool: Option<CpuPool>,    
 }
 
 pub struct RpcExtractor;
@@ -48,7 +49,7 @@ impl MetaExtractor<Metadata> for RpcExtractor {
     fn read_metadata(&self, req: &hyper::server::Request) -> Metadata {
         let origin = req.headers()
             .get::<hyper::header::Origin>()
-            .map(|origin| format!("{}://{}", origin.scheme(), origin.host()))
+            .map(|origin| format!("{:?}://{:?}", origin.scheme(), origin.host()))
             .unwrap_or_else(|| "unknown".into());
         let mut metadata = Metadata::default();
         metadata.origin = Origin::Rpc(origin);
@@ -69,7 +70,7 @@ pub fn new_http(conf: HttpConfiguration,
 }
 
 fn setup_apis(apis: ApiSet, deps: &Dependencies) -> MetaIoHandler<Metadata, Middleware> {
-    api::apis::setup_rpc(deps.stats.clone(), deps.apis.clone(), apis)
+    api::apis::setup_apis(deps.stats.clone(), deps.apis.clone(), apis, deps.pool.clone())
 }
 
 pub fn setup_http_rpc_server(dependencies: &Dependencies,
